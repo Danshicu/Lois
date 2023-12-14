@@ -5,25 +5,30 @@ import random
 
 def input_transformation():
     input_information_dict = {}
+    values_dict = {}
     with open("./Inputs/input.txt", 'r') as file:
         lines = file.readlines()
 
     for line in lines:
         letter = line.split('=')[0]
         array_of_variable_numbers = []
-
         equation = line.split('=')[1]
-        pattern = re.compile(r'<[a-z]\d,\d.\d>')
+        pattern = re.compile(r'<[a-z]\d+?,\d.\d>')
         matches = pattern.findall(equation)
+        values_array = []
+
         for match in matches:
             variable = match[1]
-            number = float(match[4]+match[5]+match[6])
+            string = match.split(',')[0][1:]
+            values_array.append(string)
+            number = float(match.split(',')[1][:-1])
             if variable not in array_of_variable_numbers:
                 array_of_variable_numbers.append(variable)
             array_of_variable_numbers.append(number)
         input_information_dict[letter] = array_of_variable_numbers
+        values_dict[letter] = values_array
 
-    return input_information_dict
+    return input_information_dict, values_dict
 
 
 def operation_reader():
@@ -33,13 +38,14 @@ def operation_reader():
         array_of_operations = file.readlines()
         for index, value in enumerate(array_of_operations):
             if '\n' in value:
-                array_of_operations[index] = value.strip().split('>')
+                array_of_operations[index] = value.strip().split('~>')
 
     return array_of_operations
 
 
 def parcel_transformation(level):
     parcel_information_dict = {}
+    values_dict = {}
     with open("./Inputs/parcel.txt", 'r') as file:
         lines = file.readlines()
 
@@ -50,17 +56,22 @@ def parcel_transformation(level):
         array_of_variable_numbers = []
 
         equation = line.split('=')[1]
-        pattern = re.compile(r'<[a-z]\d,\d.\d>')
+        pattern = re.compile(r'<[a-z]\d+?,\d.\d>')
         matches = pattern.findall(equation)
+        values_array = []
+
         for match in matches:
             variable = match[1]
-            number = float(match[4]+match[5]+match[6])
+            string = match.split(',')[0][1:]
+            values_array.append(string)
+            number = float(match.split(',')[1][:-1])
             if variable not in array_of_variable_numbers:
                 array_of_variable_numbers.append(variable)
             array_of_variable_numbers.append(number)
         parcel_information_dict[letter] = array_of_variable_numbers
+        values_dict[letter] = values_array
 
-    return parcel_information_dict
+    return parcel_information_dict, values_dict
 
 
 def get_spaces_count(input):
@@ -103,14 +114,20 @@ def lukasiewicz_matrix_formation(input_information_dict, array_of_operations):
     return matrix_dict
 
 
-def t_norm(input_information_dict, matrix_dict, parcel_information_dict):
+def t_norm(input_information_dict, input_values_dict, matrix_dict, parcel_information_dict, parcel_values_dict, used_rules, parcel_to_rule_list):
 
     matrix_keys = list(matrix_dict.keys())
     parcel_keys = list(parcel_information_dict.keys())
+    #print(matrix_keys)
+    #print(parcel_keys)
     new_matrix_dict = {}
 
     for matrix_key in matrix_keys:
-        first_param = matrix_key[0]
+        if matrix_key in used_rules:
+            continue
+        pattern = re.compile(r'[A-Z]\d+|[A-Z]')
+        matches = pattern.findall(matrix_key)
+        first_param = matches[0]
         current_matrix = matrix_dict[matrix_key]
 
         param_info = input_information_dict[first_param]
@@ -123,7 +140,10 @@ def t_norm(input_information_dict, matrix_dict, parcel_information_dict):
             necessary_parcel_variable = parcel_info[0]
 
             if necessary_variable == necessary_parcel_variable:
-                necessary_parcels.append(parcel_info[1:])
+                if input_values_dict[first_param] == parcel_values_dict[parcel_key]:
+                    necessary_parcels.append(parcel_info[1:])
+                    parcel_to_rule_list.append(f"{parcel_key}+{matrix_key}")
+
 
         #Пробегаемся по всем подходящим посылкам
         for parcel in necessary_parcels:
@@ -142,19 +162,22 @@ def t_norm(input_information_dict, matrix_dict, parcel_information_dict):
 
                 new_matrix.append(new_row)
 
+            used_rules.append(matrix_key)
             new_matrix_dict[matrix_key] = new_matrix
 
-    return new_matrix_dict
+    return new_matrix_dict, parcel_to_rule_list
 
 
-def strait_output(new_matrix_dict, input_information_dict, parcel_information_dict, external_counter):
+def strait_output(new_matrix_dict, input_information_dict, input_values_dict, parcel_information_dict, external_counter, parcel_to_rule_list):
 
+    parcel_to_rule_counter=0
     new_parcels_count =0
     alphabet = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
 
     matrix_keys = list(new_matrix_dict.keys())
     parcel_keys = list(parcel_information_dict.keys())
-    print(matrix_keys)
+    checked_keys = list(parcel_keys)
+    #print(matrix_keys)
 
     #Пробегаемся по всем матрицам
     for matrix_key in matrix_keys:
@@ -166,28 +189,34 @@ def strait_output(new_matrix_dict, input_information_dict, parcel_information_di
             for column in columns:
                 direct_conclusive.append(max(column))
 
-            print(f"Прямой вывод: {direct_conclusive}")
-
-            second_param = matrix_key[1]
+            pattern = re.compile(r'[A-Z]\d+|[A-Z]')
+            matches = pattern.findall(matrix_key)
+            second_param = matches[1]
             param_info = input_information_dict[second_param]
             necessary_variable = param_info[0]
 
-            letter = random.choice(alphabet)
-            while letter in parcel_keys:
-                letter = random.choice(alphabet)
+            letter = parcel_to_rule_list[parcel_to_rule_counter].split('+')[0]
+            subletter = random.choice(alphabet)
+            while subletter in checked_keys:
+                subletter = random.choice(alphabet)
+            checked_keys.append(subletter)
 
             amount_of_elements = len(new_matrix_dict[matrix_key])
             counter = 0
 
             array_of_elements = []
             for counter in range(0, amount_of_elements):
-                print(new_matrix_dict[matrix_key][counter])
-                element = f"<{necessary_variable}{counter + 1},{direct_conclusive[counter]}>"
+                #print(new_matrix_dict[matrix_key][counter])
+                element = f"<{input_values_dict[second_param][counter]},{direct_conclusive[counter]}>"
                 array_of_elements.append(element)
 
             equation = '{' + ','.join(array_of_elements) + '}'
-
-            line = f"\n{' '*(external_counter+1)}{letter}{external_counter+1}={equation}"
+            result = f"{subletter}{external_counter+1}={equation}"
+            line = f"\n{' '*(external_counter+1)}{result}"
+            pattern = re.compile(r'[A-Z]\d+|[A-Z]')
+            matches = pattern.findall(parcel_to_rule_list[parcel_to_rule_counter].split('+')[1])
+            print(f"{letter} : {matches[0]}~>{matches[1]} |- {result}")
+            parcel_to_rule_counter+=1
             with open('./Inputs/parcel.txt', 'a') as file:
 
                 file.write(line)
@@ -195,9 +224,10 @@ def strait_output(new_matrix_dict, input_information_dict, parcel_information_di
 
         except:
             return 0
-        finally:
-            return new_parcels_count
-    return 0
+        #finally:
+            #return new_parcels_count
+    parcel_to_rule_list.clear()
+    return new_parcels_count
 
 
 
