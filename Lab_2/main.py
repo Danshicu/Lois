@@ -49,14 +49,14 @@ if __name__ == '__main__':
                 print(f"Неправильный формат ввода отношения в строке {(choice-1)*3+2}. Вывод невозможен.")
                 continue
 
-            consequence = text_to_formula(consequence)
+            consequence = consequence_to_variables(consequence)
             if len(consequence) != len(relation):
                 print("Невозможно построить матрицу. Вывод невозможен.")
                 continue
 
-            answer = reverse_fuzzy_logic_inference([i[1] for i in consequence], relation)
+            answer = reverse_fuzzy_conclusion([i[1] for i in consequence], relation)
             if answer:
-                result = merge_answers(answer)
+                result = get_merged_answer(answer)
                 if not result:
                     result = "Вывод невозможен."
             else:

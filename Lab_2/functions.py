@@ -24,7 +24,6 @@ def read_file(count):
 def write_file(consequence, relation, result):
     with open("output", 'r') as file:
         lines = file.readlines()
-
     answer = f"Для следствия {consequence} и отношения {relation} обратный нечёткий логический вывод: {result}\n"
     with open("output", 'a') as file:
         for line in lines:
@@ -35,24 +34,21 @@ def write_file(consequence, relation, result):
 def all_combinations(*arrays):
     return list(product(*arrays))
 
+def consequence_to_variables(consequence):
+    result = []
+    lines = consequence.split(",")
+    for line in lines:
+        result.append(tuple([line.split(":")[0], float(line.split(":")[1])]))
+    return result
 
 
-
-def text_to_formula(text):
-    res = []
-    tmp = text.split(",")
-    for i in tmp:
-        res.append(tuple([i.split(":")[0], float(i.split(":")[1])]))
-    return res
-
-
-def interwal(x):
+def check_interval(x):
     return 0 <= x <= 1
 
 
-def remove_duplicates(list_of_lists):
-    unique_lists = set(tuple(tuple(sublist) for sublist in nested_list) for nested_list in list_of_lists)
-    return [list(tuple_list) for tuple_list in unique_lists]
+def get_unique(lists):
+    unique_lists = set(tuple(tuple(sublist) for sublist in nested_list) for nested_list in lists)
+    return [list(pair) for pair in unique_lists]
 
 
 def include_each_other(i, point):
@@ -76,7 +72,7 @@ def include_each_other(i, point):
         return "Не добавлять"
 
 
-def check_include(res, point):
+def check_inclusion(res, point):
     for i in range(len(res)):
         status = include_each_other(res[i], point)
         if status == "Не добавлять":
@@ -88,28 +84,26 @@ def check_include(res, point):
     return res
 
 
-def merge_answers(answers):
+def get_merged_answer(answers):
     all_comb_con = all_combinations(*answers)
-    res = []
+    result = []
     for comb in all_comb_con:
-        # print("combination", comb)
-        tmp_point = []
-        for i in range(len(comb[0])):
-            tmp = [tt[i] for tt in comb]
-            left_border = round(max([one[0] for one in tmp]), 1)
-            right_border = round(min([two[1] for two in tmp]), 1)
-
+        points = []
+        for combination_number in range(len(comb[0])):
+            values = [temp_comb[combination_number] for temp_comb in comb]
+            left_border = round(max([first[0] for first in values]), 1)
+            right_border = round(min([second[1] for second in values]), 1)
             if left_border <= right_border:
-                tmp_point.append(tuple([left_border, right_border]))
-        if len(tmp_point) == len(comb[0]):
-            res = check_include(res, tmp_point)
-    if res:
-        return result_to_string(res)
+                points.append(tuple([left_border, right_border]))
+        if len(points) == len(comb[0]):
+            result = check_inclusion(result, points)
+    if result:
+        return form_result_string(result)
     return None
 
 
-def result_to_string(result):
-    result_answer = []
+def form_result_string(result):
+    result_string = []
     for dis_answer in result:
         answer = []
         for i in range(len(dis_answer)):
@@ -117,17 +111,17 @@ def result_to_string(result):
                 answer.append(f"a{i + 1}=[{dis_answer[i][0]};{dis_answer[i][1]}]")
             elif dis_answer[i][0] == dis_answer[i][1]:
                 answer.append(f"a{i + 1}={dis_answer[i][0]}")
-        result_answer.append(answer)
-    return result_answer
+        result_string.append(answer)
+    return result_string
 
 
-def reverse_fuzzy_logic_inference(consequence, relation_matrix):
+def reverse_fuzzy_conclusion(consequence, relation_matrix):
     answer = []
     for row in zip(relation_matrix, consequence):
         if row[1] == 1:
             point = []
             for rel in row[0]:
-                if interwal(2 - rel):
+                if check_interval(2 - rel):
                     point.append(tuple([2 - rel, 1.0]))
                 else:
                     return None
@@ -138,7 +132,7 @@ def reverse_fuzzy_logic_inference(consequence, relation_matrix):
                 point = []
                 for index_rel2 in range(len(row[0])):
                     tmp = row[1] + 1 - row[0][index_rel2]
-                    if interwal(tmp):
+                    if check_interval(tmp):
                         if index_rel == index_rel2:
                             point.append((tmp, tmp))
                         else:
@@ -149,7 +143,7 @@ def reverse_fuzzy_logic_inference(consequence, relation_matrix):
                 if point:
                     dis_points.append(point)
             if dis_points:
-                answer.append(remove_duplicates(dis_points))
+                answer.append(get_unique(dis_points))
             else:
                 return None
         elif row[1] == 0:
@@ -161,7 +155,7 @@ def reverse_fuzzy_logic_inference(consequence, relation_matrix):
 
                     tmp = 1 - row[0][index_rel2]
                     if index_rel == index_rel2:
-                        if interwal(tmp):
+                        if check_interval(tmp):
                             point.append(tuple([0.0, tmp]))
                         else:
                             point = []
@@ -171,7 +165,7 @@ def reverse_fuzzy_logic_inference(consequence, relation_matrix):
                 if point:
                     dis_points.append(point)
             if dis_points:
-                answer.append(remove_duplicates(dis_points))
+                answer.append(get_unique(dis_points))
             else:
                 return None
     return answer
